@@ -1,0 +1,7 @@
+Here are the libraries you will need:
+
+aiogram
+pandas
+datetime
+configparser
+openpyxl
