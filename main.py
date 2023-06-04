@@ -3,6 +3,7 @@ import configparser  # библиотека для чтения настроек
 import pandas as pd  # библиотека для работы с датафреймами
 
 from aiogram import Bot, Dispatcher, types
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils import executor
 
 # читаем настройки из файла
@@ -18,25 +19,35 @@ dp = Dispatcher(bot)
 tasks_list = ['список дел', 'список задач', 'tasks', 'актуальное', 'actual', 'задачи']  # запросы для вызова списка дел
 morning_list = ['Доброе утро', 'утро', 'доброе', 'morning']  # команды для начала дня
 
+# Создаем две кнопки
+button_1 = InlineKeyboardButton(text="Кнопка 1", callback_data="button1")
+button_2 = InlineKeyboardButton(text="Кнопка 2", callback_data="button2")
+
+# Создаем объект клавиатуры и добавляем кнопки в одну строку
+markup = InlineKeyboardMarkup().row(button_1, button_2)
+
+
+# Отправка сообщения с кнопками
+# await bot.send_message(chat_id=<chat_id>, text='Выберите действие:', reply_markup=markup)
+
 
 # обрабатываем команду /morning
 @dp.message_handler(commands=morning_list)
 async def send_greeting(message: types.Message):
-    await message.reply('Доброе утро!')  # отправляем сообщение "доброе утро" в ответ на команду
+    await message.reply('Доброе утро!', reply=True, reply_markup=markup)  # отправляем сообщение "доброе утро"
 
 
 # обрабатываем команду /tasks
 @dp.message_handler(commands='tasks')
 async def send_greeting(message: types.Message):
-    await message.reply('Кое-что есть!\nВот список актуальных задач:',
-                        reply=True)  # отправляем сообщение "доброе утро" в ответ на команду
+    await message.reply('Кое-что есть!\nВот список актуальных задач:', reply=True)  # отправляем список задач
     excel_list = excel_list_def()
     tasks4print = print_tasks_list(excel_list)
     for i in range(0, len(tasks4print)):
         await message.answer(tasks4print[i])
 
 
-# Хенд лер на любое сообщение
+# Обрабатываем любое текстовое сообщение
 @dp.message_handler(content_types=types.ContentType.TEXT)
 async def any_message(message: types.Message):
     await message.reply("Я тебя услышал!")  # Ответим пользователю шуточным приветствием
@@ -54,7 +65,6 @@ async def any_message(message: types.Message):
 
 
 printed_tasks = []  # список задач для печати
-
 # задаем переменные для чтения списка задач
 file_path = r'D:\Users\Михаил\YandexDisk\9.Public_Folders\1_GIC\7_Else\gtd_tg.xlsx'  # Указываю полный путь к файлу табл
 max_count = 3  # задаю количество задач, которое показать
@@ -83,17 +93,11 @@ def excel_list_def():
                 count += 1
                 categories.append(df.iloc[i, 3])
                 printed_tasks.append(i)
-                # печать параметров внутри цикле
-                # print('count=', count, 'i=', i, 'df.iloc[i,3]=', df.iloc[i, 3], 'categories=', categories,
-                # 'last_row=', last_row, '\n', 'printed_tasks=', printed_tasks, )
         else:
             count += 1
             num_task = list(set_tasks.difference(set(printed_tasks)))
             num_task = sorted(num_task)
             printed_tasks.append(num_task[0])  # добавляем напечатанную задачу
-            # печать параметров внутри цикле
-            # print('count=', count, 'i=', i, 'df.iloc[i,3]=', df.iloc[i, 3], 'categories=', categories, 'last_row=',
-            #       last_row, '\n', 'printed_tasks=', printed_tasks, )
         if count == max_count:
             break
     return printed_tasks
