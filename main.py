@@ -1,45 +1,61 @@
 # Mike_pyb
 import configparser  # библиотека для чтения настроек из других файлов
 import pandas as pd  # библиотека для работы с датафреймами
+# import openpyxl
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils import executor
+from datetime import datetime
+
+file_path = r'D:\Users\Михаил\gdrive_off\GIC\Helper\gtd_tg.xlsx'  # Указываю полный путь к файлу таблицы
 
 # читаем настройки из файла
 config = configparser.ConfigParser()
 config.read('config.ini')
-tgkey = config['telegram']['tg_key']
+tg_key = config['telegram']['tg_key']
 
 # создаем тг бота
-bot = Bot(token=tgkey)
+bot = Bot(token=tg_key)
 dp = Dispatcher(bot)
 
 # задаем списки
 tasks_list = ['список дел', 'список задач', 'tasks', 'актуальное', 'actual', 'задачи']  # запросы для вызова списка дел
-morning_list = ['Доброе утро', 'утро', 'доброе', 'morning']  # команды для начала дня
-
-# Создаем две кнопки
-button_1 = InlineKeyboardButton(text="Кнопка 1", callback_data="button1")
-button_2 = InlineKeyboardButton(text="Кнопка 2", callback_data="button2")
-
-# Создаем объект клавиатуры и добавляем кнопки в одну строку
-markup = InlineKeyboardMarkup().row(button_1, button_2)
-
-
-# Отправка сообщения с кнопками
-# await bot.send_message(chat_id=<chat_id>, text='Выберите действие:', reply_markup=markup)
+morning_list = ['доброе утро', 'утро', 'доброе', 'morning']  # команды для начала дня
 
 
 # обрабатываем команду /morning
-@dp.message_handler(commands=morning_list)
-async def send_greeting(message: types.Message):
-    await message.reply('Доброе утро!', reply=True, reply_markup=markup)  # отправляем сообщение "доброе утро"
+@dp.message_handler(commands='morning')
+async def send_morning(message: types.Message):
+    # Создаем кнопки
+    button_wakeup = InlineKeyboardButton(text="Проснулся", callback_data="wakeup")
+    button_getup = InlineKeyboardButton(text="Встал", callback_data="getup")
+    button_fresh = InlineKeyboardButton(text="Умылся", callback_data="fresh")
+    button_breakfast_cooked = InlineKeyboardButton(text="Приготовил завтрак", callback_data="breakfast_cooked")
+    button_breakfast_finished = InlineKeyboardButton(text="Позавтракал", callback_data="breakfast_finished")
+
+    # Создаем объект клавиатуры и добавляем кнопки в одну строку
+    markup = InlineKeyboardMarkup(row_width=2)
+    markup.add(button_wakeup, button_getup, button_fresh, button_breakfast_cooked, button_breakfast_finished)
+
+    await message.reply('Доброе утро!', reply=True, reply_markup=markup)  # Отправка сообщения с кнопками
+
+
+# реагируем на кнопочки
+@dp.callback_query_handler(lambda callback_query: 'wakeup' in callback_query.data)
+async def morning_timers(callback_query: types.CallbackQuery):
+    if callback_query.data == "wakeup":
+        time_wakeup = datetime.now()
+        await bot.send_message(chat_id=callback_query.message.chat.id, text=f"Goal! \n {time_wakeup}")
+
+
+async def morning_cell():
+    pass
 
 
 # обрабатываем команду /tasks
 @dp.message_handler(commands='tasks')
-async def send_greeting(message: types.Message):
+async def send_tasks(message: types.Message):
     await message.reply('Кое-что есть!\nВот список актуальных задач:', reply=True)  # отправляем список задач
     excel_list = excel_list_def()
     tasks4print = print_tasks_list(excel_list)
@@ -59,14 +75,16 @@ async def any_message(message: types.Message):
         for i in range(0, len(tasks4print)):
             await message.answer(tasks4print[i])
         # await message.reply(str(printed_tasks), reply=True)
+    elif message.text.lower() in morning_list:
+        await send_morning()
     else:
         await message.answer(
             "Еще не знаком с этими словами. Я понимаю следующие слова:\n" + str(tasks_list), parse_mode="None")
 
 
 printed_tasks = []  # список задач для печати
+
 # задаем переменные для чтения списка задач
-file_path = r'D:\Users\Михаил\YandexDisk\9.Public_Folders\1_GIC\7_Else\gtd_tg.xlsx'  # Указываю полный путь к файлу табл
 max_count = 3  # задаю количество задач, которое показать
 max_len = 140  # задаю максимальное количество символов для печати из описания задачи
 
@@ -74,10 +92,7 @@ max_len = 140  # задаю максимальное количество сим
 df = pd.read_excel(file_path)  # читаю файл Excel используя pd.read_excel(**путь или имя**)
 pd.set_option('display.max_rows', None)  # устанавливаю максимальное количество выводимых строк
 pd.set_option('display.max_columns', None)  # устанавливаю максимальное количество выводимых столбцов
-last_row = df.shape[0]  # нахожу последнюю строку
-
-
-# last_column = df.shape[1]  # нахожу последний столбец
+last_df_row = df.shape[0]  # нахожу последнюю строку; last_column = df.shape[1]  # нахожу последний столбец
 
 
 # получаем список актуальных задач
@@ -85,10 +100,9 @@ def excel_list_def():
     # создаю необходимые переменные, имеющие начальное состояние
     categories = []
     count = 0
-
-    for i in range(1, last_row):
-        set_tasks = set(range(1, last_row))
-        if max_count - count < last_row - i:
+    for i in range(1, last_df_row):
+        set_tasks = set(range(1, last_df_row))
+        if max_count - count < last_df_row - i:
             if df.iloc[i, 3] not in categories:
                 count += 1
                 categories.append(df.iloc[i, 3])
